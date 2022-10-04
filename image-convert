@@ -2,4 +2,42 @@
 # SPDX-License-Identifier: GPL-3.0-only
 # Copyright 2022, Mattias Bengtsson <mattias.jc.bengtsson@gmail.com>
 
-zenity --info --text='Test!'
+set -e
+
+IMAGES=( "${@}" )
+
+if [ -e ./out ]; then
+    zenity --info                                                              \
+           --title "Output directory exists!"                                  \
+           --text "Remove the <i>out</i> directory before continuing!"
+    exit 2
+fi
+
+width="$(zenity --scale                                                        \
+                --min-value=1                                                  \
+                --max-value=50                                                 \
+                --value=5                                                      \
+                --text="Border Width"                                          \
+                )"
+
+color="$(zenity --color-selection --color=\#000000)"
+
+install -d out
+
+(
+    idx=0
+    last="${#IMAGES[@]}"
+    for img in "${IMAGES[@]}"; do
+        img="$(basename "${img}")"
+        echo "# Converting: ${img} ..."
+        convert -bordercolor "${color}" -border "${width}" "${img}"            \
+                -quality '100%' "out/${img}"
+        (( idx=idx + 1 ))
+        echo $(( (idx * 100) / last ))
+    done
+    echo "# Done!"
+) | zenity --progress                                                          \
+           --title="Converting Images"                                         \
+           --percentage=0                                                      \
+           --width=420                                                         \
+           --height=100
