@@ -5,40 +5,235 @@
 set -e
 set -o pipefail
 
-IMAGES=( "${@}" )
+NAUTILUS_SCRIPTS="${XDG_DATA_HOME:-$HOME/.local/share}/nautilus/scripts/"
 
-if [ -e ./out ]; then
-    zenity --info                                                              \
-           --title "Output directory exists!"                                  \
-           --text "Remove the <i>out</i> directory before continuing!"
-    exit 2
-fi
+NAUTILUS_SCRIPT="${NAUTILUS_SCRIPTS}/.image-convert"
+NAUTILUS_SCRIPT_SYMLINKS=( "Image - Add Border" )
 
-width="$(zenity --scale                                                        \
-                --min-value=1                                                  \
-                --max-value=50                                                 \
-                --value=5                                                      \
-                --text="Border Width"                                          \
-                )"
+################################################################################
 
-color="$(zenity --color-selection --color=\#000000)"
+function graphical {
+    test -v NAUTILUS_SCRIPT_CURRENT_URI || test -v FORCE_GRAPHICAL
+}
 
-install -d out
+function error {
+    local title text
 
-(
-    idx=0
-    last="${#IMAGES[@]}"
-    for img in "${IMAGES[@]}"; do
-        img="$(basename "${img}")"
-        echo "# Converting: ${img} ..."
-        convert -bordercolor "${color}" -border "${width}" "${img}"            \
-                -quality '100%' "out/${img}"
-        (( idx=idx + 1 ))
-        echo $(( (idx * 100) / last ))
+    title="${1}"
+    shift
+    text="${*}"
+
+    if graphical; then
+        zenity --error --text "${text}" --title "${title}"
+    else
+        echo "${*}" > /dev/stderr
+    fi
+}
+
+function info {
+    local title text
+
+    title="${1}"
+    shift
+    text="${*}"
+
+    if graphical; then
+        zenity --info --title "${title}" --text "${text}"
+    else
+        echo -ne "${title} "
+        read -n 1 -s -r -p "${*}"
+        echo
+    fi
+}
+
+function confirm {
+    local title text
+
+    title="${1}"
+    shift
+    text="${*}"
+
+    if graphical; then
+        zenity --question --title="${title}" --text "${text}"
+        return $?
+    else
+        read -p "${title}: ${text} [Y/n] " -n 1 -r -s
+        echo
+        [[ ! ${REPLY} =~ ^[Nn]$ ]]
+    fi
+}
+
+function read-password {
+    zenity --title="Password" --password
+}
+
+function output-dir {
+    if [ -e ./out ]; then
+        error "Output directory exists!"                                       \
+              "Remove the [out/] directory before continuing!"
+        exit 2
+    fi
+
+    command install -d out
+}
+
+function authenticate {
+    local result ps
+
+    # Just return if we already have a sudo ticket
+    if sudo -vn &> /dev/null; then
+        return
+    fi
+
+    read-password | sudo -Sv 2>/dev/null
+    # Only way I've found to capture both PIPESTATUS[0] *and* $? at the same
+    # time. Don't touc this!
+    result=$? ps=${PIPESTATUS[0]}
+
+    if (( ps > 0 )); then
+        echo exit
+        return
+    fi
+
+    return $result
+}
+
+function gsudo {
+    local title
+
+    title="Password"
+
+    for i in {1..3}; do
+        if authenticate "${title}"; then
+            sudo -n "${@}"
+            return $?
+        else
+            title="Password — Try again!"
+        fi
     done
-    echo "# Done!"
-) | zenity --progress                                                          \
-           --title="Converting Images"                                         \
-           --percentage=0                                                      \
-           --width=420                                                         \
-           --height=100
+}
+
+################################################################################
+
+function get-border-width {
+    zenity --scale                                                             \
+           --min-value=1                                                       \
+           --max-value=50                                                      \
+           --value=5                                                           \
+           --text="Border Width"
+}
+
+function get-border-color {
+    zenity --color-selection --color=\#000000
+}
+
+function add-border {
+    local width color i num_images
+
+    width="$(get-border-width)"
+    color="$(get-border-color)"
+    i=0
+    images=( "${@}" )
+    num_images="${#images[@]}"
+
+    output-dir
+
+    ( for image in "${images[@]}"; do
+          image="$(basename "${image}")"
+          echo "# Adding border to: ${image} ..."
+          convert -bordercolor "${color}" -border "${width}" "${image}"        \
+                  -quality '100%' "out/${image}"
+          (( i=i + 1 ))
+          echo $(( (i * 100) / num_images ))
+      done
+      echo "# Done!"
+    ) | zenity --progress                                                      \
+               --title="Adding border to images"                               \
+               --percentage=0                                                  \
+               --width=420                                                     \
+               --height=100
+}
+
+################################################################################
+
+function install-dependencies {
+    local msg
+
+    msg="Install ImageMagick? [sudo apt install imagemagick]"
+
+    if ! confirm "installer" "${msg}" ; then
+        error "Can't continue!" \
+              "ImageMagick is a necessary dependency for this script!"
+        exit 2
+    fi
+
+    if graphical; then
+        gsudo apt install --yes imagemagick                                    \
+            | tee                                                              \
+            | zenity --title "Installing ImageMagick "                         \
+                     --progress                                                \
+                     --pulsate
+    else
+        sudo apt install --yes imagemagick
+    fi
+}
+
+function do-install {
+    if [ -e "${NAUTILUS_SCRIPT}" ]; then
+        if confirm "Installer"                                                 \
+                   "image-convert is already installed.\n\n"                   \
+                   "Do you want to uninstall image-convert?"; then
+            do-uninstall
+        fi
+        exit
+    fi
+
+    if ! confirm "Installer" "Do you want to install image-convert?"; then
+        exit
+    fi
+
+    if ! command -v convert >/dev/null ; then
+        install-dependencies
+    fi
+
+    command install -DT "${0}" "${NAUTILUS_SCRIPT}"
+
+    pushd "${NAUTILUS_SCRIPTS}" >/dev/null
+    for symlink in "${NAUTILUS_SCRIPT_SYMLINKS[@]}"; do
+        ln -s ./.image-convert "${symlink}"
+    done
+    popd >/dev/null
+
+    info "Installation successful!" \
+         "image-convert is now installed!"
+}
+
+function do-uninstall {
+    if [ ! -e "${NAUTILUS_SCRIPT}" ]; then
+        error "Nothing to do!" "Not installed!"
+        exit
+    fi
+
+    rm "${NAUTILUS_SCRIPT}"
+
+    pushd "${NAUTILUS_SCRIPTS}" >/dev/null
+    for symlink in "${NAUTILUS_SCRIPT_SYMLINKS[@]}"; do
+        rm "${symlink}"
+    done
+    popd >/dev/null
+
+    info "Uninstall successful!" \
+         "image-convert is now removed from your computer!"
+}
+
+################################################################################
+
+case "$(basename "${0}")" in
+    "Image - Add Border")
+        add-border "${@}"
+        ;;
+    image-convert-installer)
+        export FORCE_GRAPHICAL=true
+        do-install
+        ;;
+esac
