@@ -10,8 +10,9 @@ Convert several images using [ImageMagick](https://imagemagick.org/index.php).
 
 1. Ensure you're running Ubuntu 22.04.
 2. Download [image-convert-installer v0.1][1].
-3. Right-click `image-convert-installer` in `Files` and make it executable
-   (TODO! EXPLAIN!).
+3. Right-click `image-convert-installer` in `Files` and press `Properties`.
+   1. Change to the `Permissions` tab.
+   2. Check the `Allow executing file as program` checkbox.
 4. Right-click `image-convert-installer` again and press `Run as a program` to
    actually install it.
 5. You can run this command again to *uninstall* the script.
