@@ -11,8 +11,8 @@ Convert several images using [ImageMagick](https://imagemagick.org/index.php).
 
 ## Installation
 
-1. Ensure you're running Ubuntu 22.04.
-2. Download [image-convert-installer v0.1][1].
+1. Ensure you're running Fedora Silverblue.
+2. Download [image-convert-installer v0.2][1].
 3. Right-click `image-convert-installer` in `Files` and press `Properties`.
    1. Change to the `Permissions` tab.
    2. Check the `Allow executing file as program` checkbox.
@@ -27,9 +27,9 @@ Convert several images using [ImageMagick](https://imagemagick.org/index.php).
 
 1. Mark one or several image files in `Files`.
 2. Right-click and select `Image - Add border`.
-3. Follow the wizard.
-4. The converted files will end up in an `out/` subdirectory to ensure that your
-   current files are untouched!
+3. Fill in pixel border width in pixels in the terminal window.
+4. The converted files will end up in an `out/` sub directory to ensure that
+   your current files are untouched!
 
 ## Warning
 
