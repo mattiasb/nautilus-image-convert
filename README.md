@@ -14,8 +14,7 @@ Convert several images using [ImageMagick](https://imagemagick.org/index.php).
 1. Ensure you're running Fedora Silverblue.
 2. Download [image-convert-installer v0.2][1].
 3. Right-click `image-convert-installer` in `Files` and press `Properties`.
-   1. Change to the `Permissions` tab.
-   2. Check the `Allow executing file as program` checkbox.
+4. Flip the `Executable as program` switch and close the `Properties` window.
 4. Right-click `image-convert-installer` again and press `Run as a program` to
    actually install it.
 5. You can run this command again to *uninstall* the script.
