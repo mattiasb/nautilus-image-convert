@@ -37,4 +37,4 @@ While I haven't experienced any bugs — and do believe that this code *won't* e
 your files or your cats — please make sure to have backups of your important
 files before running this code. :)
 
-[1]: https://github.com/mattiasb/nautilus-image-convert/releases/download/v0.1/image-convert-installer
+[1]: https://github.com/mattiasb/nautilus-image-convert/releases/download/v0.2/image-convert-installer
